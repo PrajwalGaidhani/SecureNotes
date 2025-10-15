@@ -13,6 +13,7 @@ import com.prajwal.securenote.security.response.LoginResponse;
 import com.prajwal.securenote.security.request.SignupRequest;
 import com.prajwal.securenote.security.response.MessageResponse;
 import com.prajwal.securenote.security.response.UserInfoEndpointConfig;
+import com.prajwal.securenote.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -52,6 +53,9 @@ public class AuthController {
     private PasswordEncoder encoder;
     @Autowired
     private RoleRepository roleRepository;
+
+    @Autowired
+    private UserService userService;
 
     @PostMapping(
             value = "/public/signin"
