@@ -1,21 +1,22 @@
 package com.prajwal.securenote.security.jwt;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class JwtUtils {
@@ -36,12 +37,23 @@ public class JwtUtils {
         return null;
     }
     public Key key(){
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecreat));
+//        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecreat));
+        return Keys.hmacShaKeyFor(jwtSecreat.getBytes(StandardCharsets.UTF_8));
+
     }
 // c
     public String generateTokenFromUsername(UserDetails userDetails){
         String username=userDetails.getUsername();
-        return Jwts.builder().subject(username).issuedAt(new Date()).expiration(new Date((new Date()).getTime()+jwtExpirationMs)).signWith(key()).compact();
+        logger.debug("JWT Token for username: {}",username);
+//         Collect roles from userDetails
+            List<String> roles = userDetails.getAuthorities()
+                    .stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .collect(Collectors.toList());
+//        return Jwts.builder().subject(username) .claim("roles", roles) .issuedAt(new Date()).expiration(new Date((new Date()).getTime()+jwtExpirationMs)).signWith(key()).compact();
+        return Jwts.builder().subject(username) .issuedAt(new Date()).expiration(new Date((new Date()).getTime()+jwtExpirationMs)).signWith(key()).compact();
+
+
     }
 
     public  String getUserNameFromJwtToken(String token){
@@ -62,5 +74,13 @@ public class JwtUtils {
             logger.error("Invalid JWT Token {}",e.getMessage());
         }
         return false;
+    }
+
+    public Claims getClaims(String token) {
+        return Jwts.parser()
+                .verifyWith((SecretKey) key())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

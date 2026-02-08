@@ -1,6 +1,8 @@
 package com.prajwal.securenote.security.jwt;
 
 import com.prajwal.securenote.security.services.UserDetailsServiceImpl;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,7 +17,9 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.crypto.SecretKey;
 import java.io.IOException;
+import java.util.List;
 
 @Component
 public class AuthTokenFilter extends OncePerRequestFilter {
@@ -42,9 +46,18 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         try{
             String jwt=parseJwt(request);
             if(jwt!=null && jwtUtils.validateJwtToken(jwt)){
+                var claims = jwtUtils.getClaims(jwt);
                 String username=jwtUtils.getUserNameFromJwtToken(jwt);
+                @SuppressWarnings("unchecked")
+                var roles = (List<String>) claims.get("roles");
+                if (roles == null) roles = List.of(); // ✅ Prevent NullPointerException
+
+                var authorities = roles.stream()
+                        .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                        .toList();
+
                 UserDetails userDetails=userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authenticationToken=new UsernamePasswordAuthenticationToken(userDetails,null,userDetails.getAuthorities());
+                UsernamePasswordAuthenticationToken authenticationToken=new UsernamePasswordAuthenticationToken(userDetails,null,authorities);
                 logger.debug("Role from JWT :{}",userDetails.getAuthorities());
                 authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
@@ -54,4 +67,6 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         }
         filterChain.doFilter(request,response);
     }
+
+
 }
